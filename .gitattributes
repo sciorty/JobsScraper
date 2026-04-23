@@ -1,0 +1,13 @@
+# Auto convert line endings
+* text=auto
+
+# Python
+*.py text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# Config
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf

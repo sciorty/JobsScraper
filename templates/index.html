@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Job Tracker</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; background: #f9f9f9; }
+      h1 { margin-top: 0; color: #333; }
+      .controls { 
+        background: white; 
+        padding: 16px; 
+        border-radius: 8px; 
+        margin-bottom: 16px; 
+        display: flex; 
+        gap: 16px; 
+        flex-wrap: wrap; 
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      .controls > div { display: flex; gap: 8px; align-items: center; }
+      .controls label { margin: 0; font-weight: 500; }
+      .controls select, .controls input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; }
+      .controls button { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      .controls button:hover { background: #0056b3; }
+      .stats { font-size: 0.85rem; color: #666; padding: 0 4px; }
+      table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+      th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+      th { cursor: pointer; background: #f4f4f4; font-weight: 600; user-select: none; }
+      th:hover { background: #e8e8e8; }
+      th.sort-asc::after { content: " ▲"; }
+      th.sort-desc::after { content: " ▼"; }
+      tr:hover { background: #f5f5f5; }
+      .nowrap { white-space: nowrap; }
+      a { color: #007bff; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      input[type="checkbox"] { cursor: pointer; }
+      input[type="text"] { width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; }
+      .group-header { 
+        background: #e3f2fd; 
+        font-weight: 600; 
+        padding: 12px !important; 
+        text-align: left;
+      }
+      tr.group-header td { border-top: 2px solid #2196F3; }
+      .new-jobs-badge {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        display: inline-block;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+      .new-jobs-badge .number {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .new-jobs-badge .label {
+        font-size: 0.9rem;
+        opacity: 0.95;
+      }
+      @media (max-width: 768px) {
+        .controls { flex-direction: column; align-items: stretch; }
+        .controls > div { flex-direction: column; }
+        .controls select, .controls input, .controls button { width: 100%; }
+        table { font-size: 0.9rem; }
+        th, td { padding: 8px; }
+        .new-jobs-badge { font-size: 0.95rem; padding: 12px 16px; }
+        .new-jobs-badge .number { font-size: 1.6rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>💼 Job Tracker</h1>
+    
+    <div id="new-jobs-badge" class="new-jobs-badge" style="display: none;">
+      <span class="number" id="new-count">0</span>
+      <span class="label">New Offers to Review</span>
+    </div>
+    
+    <div class="controls">
+      <div>
+        <label for="filter-flag">Status:</label>
+        <select id="filter-flag">
+          <option value="">All</option>
+          <option value="reviewed">✓ Reviewed</option>
+          <option value="interested">★ Interested</option>
+          <option value="none">Not reviewed</option>
+        </select>
+      </div>
+      
+      <div>
+        <label for="group-by">Group by:</label>
+        <select id="group-by">
+          <option value="">None</option>
+          <option value="company">Company</option>
+          <option value="posted_date">Date</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="sort-by">Sort by:</label>
+        <select id="sort-by">
+          <option value="created_at-desc">Most recent</option>
+          <option value="posted_date-desc">Posted date (newest)</option>
+          <option value="title-asc">Position (A-Z)</option>
+          <option value="company-asc">Company (A-Z)</option>
+        </select>
+      </div>
+
+      <span class="stats" id="stats"></span>
+    </div>
+
+    <table id="jobs-table">
+      <thead>
+        <tr>
+          <th data-col="title">Position</th>
+          <th data-col="company">Company</th>
+          <th data-col="location">Location</th>
+          <th>Link</th>
+          <th data-col="posted_date">Date</th>
+          <th>Reviewed</th>
+          <th>Interested</th>
+          <th>Comment</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr data-job='{"id":"{{ job.id }}","title":"{{ job.title }}","company":"{{ job.company }}","location":"{{ job.location }}","url":"{{ job.url }}","posted_date":"{{ job.posted_date }}","reviewed":{{ job.reviewed }},"interested":{{ job.interested }},"comment":"{{ job.comment }}"}'>
+          <td>{{ job.title }}</td>
+          <td>{{ job.company }}</td>
+          <td class="nowrap">{{ job.location }}</td>
+          <td class="nowrap"><a href="{{ job.url }}" target="_blank">Open</a></td>
+          <td class="nowrap">{{ job.posted_date }}</td>
+          <td class="nowrap"><input type="checkbox" data-id="{{ job.id }}" class="reviewed" {% if job.reviewed %}checked{% endif %}></td>
+          <td class="nowrap"><input type="checkbox" data-id="{{ job.id }}" class="interested" {% if job.interested %}checked{% endif %}></td>
+          <td><input type="text" data-id="{{ job.id }}" class="comment" value="{{ job.comment }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <script>
+      let allJobs = [];
+      let sortState = { col: 'created_at', desc: true };
+
+      function parseJobData() {
+        allJobs = Array.from(document.querySelectorAll('#jobs-table tbody tr')).map(tr => {
+          const data = tr.dataset.job ? JSON.parse(tr.dataset.job) : {};
+          return {
+            ...data,
+            element: tr,
+            title: tr.children[0]?.innerText || '',
+            company: tr.children[1]?.innerText || '',
+            location: tr.children[2]?.innerText || '',
+            posted_date: tr.children[4]?.innerText || '',
+          };
+        });
+      }
+
+      function getFilteredJobs() {
+        let filtered = allJobs;
+        const filterStatus = document.getElementById('filter-flag').value;
+        
+        if (filterStatus === 'reviewed') {
+          filtered = filtered.filter(j => j.reviewed == 1);
+        } else if (filterStatus === 'interested') {
+          filtered = filtered.filter(j => j.interested == 1);
+        } else if (filterStatus === 'none') {
+          filtered = filtered.filter(j => j.reviewed == 0);
+        }
+        return filtered;
+      }
+
+      function groupJobs(jobs) {
+        const groupBy = document.getElementById('group-by').value;
+        if (!groupBy) return [{ name: '', jobs }];
+
+        const groups = {};
+        jobs.forEach(job => {
+          const key = job[groupBy] || '(Unspecified)';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(job);
+        });
+        return Object.entries(groups).map(([name, jobs]) => ({ name, jobs }));
+      }
+
+      function sortJobs(jobs) {
+        const [col, dir] = document.getElementById('sort-by').value.split('-');
+        const desc = dir === 'desc';
+        jobs.sort((a, b) => {
+          let aVal = a[col] || '';
+          let bVal = b[col] || '';
+          if (typeof aVal === 'string') {
+            return desc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+          }
+          return desc ? bVal - aVal : aVal - bVal;
+        });
+      }
+
+      function renderTable() {
+        let filtered = getFilteredJobs();
+        sortJobs(filtered);
+        const grouped = groupJobs(filtered);
+        
+        const tbody = document.querySelector('#jobs-table tbody');
+        tbody.innerHTML = '';
+
+        grouped.forEach(group => {
+          if (group.name) {
+            const tr = document.createElement('tr');
+            tr.className = 'group-header';
+            tr.innerHTML = `<td colspan="8">${group.name} (${group.jobs.length})</td>`;
+            tbody.appendChild(tr);
+          }
+          group.jobs.forEach(job => {
+            tbody.appendChild(job.element);
+          });
+        });
+
+        // Update checkboxes
+        tbody.querySelectorAll('input.reviewed').forEach(cb => {
+          cb.addEventListener('change', onReviewedChange);
+        });
+        tbody.querySelectorAll('input.interested').forEach(cb => {
+          cb.addEventListener('change', onInterestedChange);
+        });
+        tbody.querySelectorAll('input.comment').forEach(inp => {
+          inp.addEventListener('blur', onCommentChange);
+        });
+
+        // Update stats
+        const total = allJobs.length;
+        const reviewed = allJobs.filter(j => j.reviewed).length;
+        const interested = allJobs.filter(j => j.interested).length;
+        const notReviewed = total - reviewed;
+        
+        document.getElementById('stats').innerText = `${filtered.length}/${total} offers | ✓ ${reviewed} reviewed | ★ ${interested} interested`;
+        
+        // Update new jobs badge
+        const badge = document.getElementById('new-jobs-badge');
+        const newCount = document.getElementById('new-count');
+        if (notReviewed > 0) {
+          newCount.textContent = notReviewed;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
+      async function onReviewedChange(e) {
+        const id = e.target.dataset.id;
+        const reviewed = e.target.checked;
+        await fetch('/api/set_reviewed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, reviewed })
+        });
+        const job = allJobs.find(j => j.id == id);
+        if (job) job.reviewed = reviewed ? 1 : 0;
+        renderTable();
+      }
+
+      async function onInterestedChange(e) {
+        const id = e.target.dataset.id;
+        const interested = e.target.checked;
+        await fetch('/api/set_interested', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, interested })
+        });
+        const job = allJobs.find(j => j.id == id);
+        if (job) job.interested = interested ? 1 : 0;
+        renderTable();
+      }
+
+      async function onCommentChange(e) {
+        const id = e.target.dataset.id;
+        const comment = e.target.value;
+        await fetch('/api/set_comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, comment })
+        });
+      }
+
+      // Event listeners
+      document.getElementById('filter-flag').addEventListener('change', renderTable);
+      document.getElementById('group-by').addEventListener('change', renderTable);
+      document.getElementById('sort-by').addEventListener('change', renderTable);
+
+      // Initial render
+      parseJobData();
+      renderTable();
+    </script>
+  </body>
+</html>
