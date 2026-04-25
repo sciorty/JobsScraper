@@ -29,13 +29,17 @@ This is a **personal tool** for my own job search, not a commercial service. The
 - **Review tracking** (mark as reviewed/interested)
 - **Personal notes** on each offer
 - **LAN accessible** from any device on your network
+- **Web-based settings** to change configuration without restarting
+- **Dark mode** toggle in settings
+- **Smart defaults** - filters by "Not reviewed", groups by "Company"
+- **Rate limit handling** with exponential backoff retry logic
 - **Simple CLI** for management
 
 ## 🗂️ Project Structure
 
 ```
 JobsScraper/
-├── app.py                  # Flask app + scheduler
+├── app.py                 # Flask app + scheduler
 ├── config.yaml            # Configuration (keywords, locations, scrapers, interval)
 ├── storage.py             # SQLite database management
 ├── requirements.txt       # Python dependencies
@@ -46,6 +50,7 @@ JobsScraper/
 │   └── linkedin.py        # LinkedIn scraper (plugin)
 └── templates/
     └── index.html         # Web UI (table, flag, comments)
+    └── settings.html      # Web UI (settings)
 ```
 
 ## 🚀 Quick Start
@@ -133,76 +138,49 @@ python3 manage.py start --bg
   - On macOS, find your IP with: `ifconfig | grep "inet "`
 - **Smartphone**: same URL as your IP on the LAN
 
-## 📱 Using the UI
+## 📱 Dashboard & Configuration
 
-### Table
+### Using the Dashboard
 
-The table shows:
-| Column | Description |
-|--------|-------------|
-| **Position** | Job title |
-| **Company** | Company name |
-| **Location** | Job location |
-| **Link** | Click to open offer on LinkedIn |
-| **Date** | Publication date |
-| **Flag** | ☑️ Checkbox: check if interested |
-| **Comment** | Text field: personal notes |
+The dashboard shows a table with all jobs. You can:
 
-### Sorting
+| Feature | How |
+|---------|-----|
+| **Filter** | Use "Status" dropdown (All / Reviewed / Interested / Not reviewed) |
+| **Group** | Use "Group by" dropdown (None / Company / Posted Date) |
+| **Sort** | Click column headers (Position, Company, Location, Date) |
+| **Mark Reviewed** | Check ✓ checkbox (auto-saves to DB) |
+| **Mark Interested** | Check ★ checkbox (auto-saves to DB) |
+| **Add Notes** | Click "Comment" field, type, then click outside to save |
 
-Click any column header (Position, Company, Location, Date) to sort alphabetically. Click again to reverse.
+**Smart Defaults**: Dashboard opens with "Not reviewed" filter and "Company" grouping for quick scanning.
 
-### Flag (Y/N)
+### Configuring via Web UI (Recommended)
 
-- Check the checkbox to mark offer as interesting
-- Automatically saved to DB on click
+Click **⚙️ Settings** button to access the configuration panel:
 
-### Comments
+1. **Keywords** - Add/remove search terms (press Enter)
+2. **Locations** - Add/remove job locations (press Enter)
+3. **Polling Interval** - Minutes between scraping cycles (default: 60)
+4. **Scrapers** - Enable/disable available scrapers
+5. **Dark Mode** - Toggle dark/light theme (saved in browser)
 
-- Write personal notes in the "Comment" field
-- Changes save when you click outside the field (blur)
-- Examples: "Low salary", "Remote hours", "Deadline 30/04", etc.
+Changes apply on the **next scraping cycle**. No app restart needed!
 
-## 🎛️ Management CLI Commands
+### Manual Configuration (Advanced)
 
-Use `python3 manage.py` to control the app from terminal:
+Edit `config.yaml` directly for advanced options:
 
-### Start / Stop
-
-```bash
-python3 manage.py start          # Start the app (see logs)
-python3 manage.py start --bg     # Start in background
-python3 manage.py stop           # Stop the app
-python3 manage.py status         # Check if app is running
-```
-
-### Database
-
-```bash
-python3 manage.py db:info        # Show database statistics
-python3 manage.py db:flagged     # Show only flagged offers
-python3 manage.py db:clean       # Clear database (with confirmation)
-```
-
-### Setup
-
-```bash
-python3 manage.py install        # Install dependencies
-python3 manage.py help           # Show all commands
-```
-
-## ⚙️ Configuration
-
-You can change this parameters during the execution of the program, they will be fetched in the next scraping cycle
 ```yaml
 keywords:
-  - Programmer
+  - Embedded
+  - Firmware
 
 locations:
-  - Turin
+  - Torino
   - Milan
 
-poll_interval_minutes: 60        # Default: 1 hour
+poll_interval_minutes: 60
 debug_level: 1                   # 0=silent, 1=normal, 2=verbose, 3=debug
 
 scrapers:
@@ -212,6 +190,13 @@ scrapers:
     enabled: true
     max_results_per_search: 1000
 ```
+
+**Note**: Only edit `config.yaml` directly to:
+- Change `debug_level` (requires app restart)
+- Add new scrapers (requires app restart)
+- Adjust `max_results_per_search` per scraper
+
+For keywords, locations, polling interval, and scraper enable/disable, **use the Web Settings** instead!
 
 ## 🔌 Adding a New Scraper
 
@@ -288,13 +273,19 @@ python3 manage.py install
 - Verify smartphone is on the same WiFi network.
 - Use `ifconfig | grep "inet "` to find the correct IP (usually `192.168.x.x`).
 
-### "LinkedIn blocked (403)"
+### "LinkedIn blocked (403)" or "Too Many Requests (429)"
 
-LinkedIn blocks massive requests after a few cycles. Solutions:
-- Increase `poll_interval_minutes` to `60` (1 hour).
-- Use proxy or VPN.
-- Add scrapers for other portals (Indeed, Glassdoor, etc.).
-- Consider using LinkedIn official API (requires authentication).
+LinkedIn rate limits aggressive scraping. The app now includes **exponential backoff retry logic** that automatically:
+- Detects 429 (Too Many Requests) responses
+- Waits with increasing delays (10s → 20s → 40s)
+- Retries up to 3 times before giving up
+
+**If you still hit limits:**
+- Increase `poll_interval_minutes` to `60` or higher (default is safe)
+- Reduce `max_results_per_search` per scraper (fewer jobs per cycle)
+- Add more locations/reduce keywords to spread load
+- Use proxy or VPN
+- Add scrapers for other portals (Indeed, Glassdoor, etc.)
 
 ### No offers found
 
