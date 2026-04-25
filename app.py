@@ -9,6 +9,7 @@ from storage import init_db, upsert_jobs, list_jobs, set_reviewed, set_intereste
 app = Flask(__name__)
 
 cfg = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+scheduler = None  # Will be set later
 
 # Debug level: 0=silent, 1=normal, 2=verbose, 3=debug
 DEBUG_LEVEL = cfg.get('debug_level', 1)
@@ -66,6 +67,50 @@ def api_set_comment():
     set_comment(data['id'], data.get('comment', ''))
     return jsonify({'ok': True})
 
+@app.route('/settings')
+def settings():
+    return render_template('settings.html', config=cfg)
+
+@app.route('/api/config', methods=['GET'])
+def api_get_config():
+    return jsonify({
+        'keywords': cfg.get('keywords', []),
+        'locations': cfg.get('locations', []),
+        'poll_interval_minutes': cfg.get('poll_interval_minutes', 60),
+        'scrapers': cfg.get('scrapers', [])
+    })
+
+@app.route('/api/config', methods=['POST'])
+def api_update_config():
+    global cfg, scraper_instances, scheduler
+    data = request.json
+    
+    # Update config dict
+    cfg['keywords'] = data.get('keywords', [])
+    cfg['locations'] = data.get('locations', [])
+    cfg['poll_interval_minutes'] = data.get('poll_interval_minutes', 60)
+    
+    # Update scrapers enabled status
+    for i, scraper in enumerate(data.get('scrapers', [])):
+        if i < len(cfg.get('scrapers', [])):
+            cfg['scrapers'][i]['enabled'] = scraper.get('enabled', False)
+    
+    # Save to file
+    with open('config.yaml', 'w', encoding='utf-8') as f:
+        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+    
+    # Reload scrapers
+    scraper_instances = load_scrapers()
+    
+    # Reschedule background job
+    if scheduler and scheduler.running:
+        scheduler.reschedule_job('run_scrapers', trigger='interval', seconds=cfg.get('poll_interval_minutes', 60) * 60)
+    
+    if DEBUG_LEVEL >= 1:
+        print(f"✓ Configuration updated: keywords={cfg.get('keywords', [])}, locations={cfg.get('locations', [])}")
+    
+    return jsonify({'ok': True})
+
 def run_scrapers():
     print(f'\n🔍 Running scrapers...')
     all_found = []
@@ -119,8 +164,7 @@ if __name__ == '__main__':
     has_data = len(existing_jobs) > 0
 
     scheduler = BackgroundScheduler()
-    poll_interval_seconds = cfg.get('poll_interval_minutes', 5) * 60
-    scheduler.add_job(run_scrapers, 'interval', seconds=poll_interval_seconds)
+    scheduler.add_job(run_scrapers, 'interval', id='run_scrapers', seconds=cfg.get('poll_interval_minutes', 5) * 60)
     scheduler.start()
 
     # Run scrapers only if DB is empty, otherwise start server first

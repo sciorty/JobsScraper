@@ -1,22 +1,14 @@
-# Configuration for job scrapers
-# Add keywords, locations and scrapers you want to run
-
-keywords:
-  - Embedded
-  - Firmware
-  - Technical Leader 
-  - IoT
-locations:
-  - Torino
-
-scrapers:
-  - name: linkedin
-    module: scrapers.linkedin
-    class: LinkedInScraper
-    enabled: true
-    max_results_per_search: 1000  # max jobs per keyword+location for this scraper
-
-poll_interval_minutes: 5  # how often to run scrapers (in minutes)
-
-# Debug level: 0=silent, 1=normal (default), 2=verbose, 3=debug
 debug_level: 1
+keywords:
+- Embedded
+- Firmware
+- Technical Leader
+locations:
+- Torino
+poll_interval_minutes: 60
+scrapers:
+- class: LinkedInScraper
+  enabled: true
+  max_results_per_search: 1000
+  module: scrapers.linkedin
+  name: linkedin
