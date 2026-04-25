@@ -360,12 +360,16 @@
         setPreference('group-by', e.target.value);
         renderTable();
       });
-      document.getElementById('sort-by').addEventListener('change', renderTable);
+      document.getElementById('sort-by').addEventListener('change', (e) => {
+        setPreference('sort-by', e.target.value);
+        renderTable();
+      });
 
       // Initial render with defaults
       initDarkMode();
       document.getElementById('filter-flag').value = getPreference('filter-flag', 'none');
       document.getElementById('group-by').value = getPreference('group-by', 'company');
+      document.getElementById('sort-by').value = getPreference('sort-by', 'company-asc');
       loadJobs();
     </script>
   </body>
