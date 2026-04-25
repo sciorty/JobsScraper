@@ -152,18 +152,14 @@
       let allJobs = [];
       let sortState = { col: 'created_at', desc: true };
 
+      async function loadJobs() {
+        const resp = await fetch('/api/jobs');
+        allJobs = await resp.json();
+        renderTable();
+      }
+
       function parseJobData() {
-        allJobs = Array.from(document.querySelectorAll('#jobs-table tbody tr')).map(tr => {
-          const data = tr.dataset.job ? JSON.parse(tr.dataset.job) : {};
-          return {
-            ...data,
-            element: tr,
-            title: tr.children[0]?.innerText || '',
-            company: tr.children[1]?.innerText || '',
-            location: tr.children[2]?.innerText || '',
-            posted_date: tr.children[4]?.innerText || '',
-          };
-        });
+        // Deprecated: Now using loadJobs() instead
       }
 
       function getFilteredJobs() {
@@ -222,25 +218,30 @@
             tbody.appendChild(tr);
           }
           group.jobs.forEach(job => {
-            tbody.appendChild(job.element);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${job.title}</td>
+              <td>${job.company}</td>
+              <td class="nowrap">${job.location}</td>
+              <td class="nowrap"><a href="${job.url}" target="_blank">Open</a></td>
+              <td class="nowrap">${job.posted_date}</td>
+              <td class="nowrap"><input type="checkbox" data-id="${job.id}" class="reviewed" ${job.reviewed ? 'checked' : ''}></td>
+              <td class="nowrap"><input type="checkbox" data-id="${job.id}" class="interested" ${job.interested ? 'checked' : ''}></td>
+              <td><input type="text" data-id="${job.id}" class="comment" value="${job.comment || ''}"></td>
+            `;
+            tbody.appendChild(tr);
+            
+            // Attach listeners
+            tr.querySelector('input.reviewed')?.addEventListener('change', onReviewedChange);
+            tr.querySelector('input.interested')?.addEventListener('change', onInterestedChange);
+            tr.querySelector('input.comment')?.addEventListener('blur', onCommentChange);
           });
-        });
-
-        // Update checkboxes
-        tbody.querySelectorAll('input.reviewed').forEach(cb => {
-          cb.addEventListener('change', onReviewedChange);
-        });
-        tbody.querySelectorAll('input.interested').forEach(cb => {
-          cb.addEventListener('change', onInterestedChange);
-        });
-        tbody.querySelectorAll('input.comment').forEach(inp => {
-          inp.addEventListener('blur', onCommentChange);
         });
 
         // Update stats
         const total = allJobs.length;
-        const reviewed = allJobs.filter(j => j.reviewed).length;
-        const interested = allJobs.filter(j => j.interested).length;
+        const reviewed = allJobs.filter(j => j.reviewed == 1).length;
+        const interested = allJobs.filter(j => j.interested == 1).length;
         const notReviewed = total - reviewed;
         
         document.getElementById('stats').innerText = `${filtered.length}/${total} offers | ✓ ${reviewed} reviewed | ★ ${interested} interested`;
@@ -298,8 +299,7 @@
       document.getElementById('sort-by').addEventListener('change', renderTable);
 
       // Initial render
-      parseJobData();
-      renderTable();
+      loadJobs();
     </script>
   </body>
 </html>
