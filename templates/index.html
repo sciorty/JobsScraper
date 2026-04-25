@@ -152,6 +152,16 @@
       let allJobs = [];
       let sortState = { col: 'created_at', desc: true };
 
+      // localStorage helpers
+      function getPreference(key, defaultValue) {
+        const val = localStorage.getItem(key);
+        return val !== null ? val : defaultValue;
+      }
+
+      function setPreference(key, value) {
+        localStorage.setItem(key, value);
+      }
+
       async function loadJobs() {
         const resp = await fetch('/api/jobs');
         allJobs = await resp.json();
@@ -294,11 +304,19 @@
       }
 
       // Event listeners
-      document.getElementById('filter-flag').addEventListener('change', renderTable);
-      document.getElementById('group-by').addEventListener('change', renderTable);
+      document.getElementById('filter-flag').addEventListener('change', (e) => {
+        setPreference('filter-flag', e.target.value);
+        renderTable();
+      });
+      document.getElementById('group-by').addEventListener('change', (e) => {
+        setPreference('group-by', e.target.value);
+        renderTable();
+      });
       document.getElementById('sort-by').addEventListener('change', renderTable);
 
-      // Initial render
+      // Initial render with defaults
+      document.getElementById('filter-flag').value = getPreference('filter-flag', 'none');
+      document.getElementById('group-by').value = getPreference('group-by', 'company');
       loadJobs();
     </script>
   </body>
