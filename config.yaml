@@ -1,11 +1,4 @@
 debug_level: 1
-keywords:
-- Embedded
-- Firmware
-- Technical Leader
-locations:
-- Torino
-poll_interval_minutes: 60
 scrapers:
 - class: LinkedInScraper
   enabled: true

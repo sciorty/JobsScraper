@@ -5,11 +5,51 @@ import sys
 from flask import Flask, render_template, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
 from storage import init_db, upsert_jobs, list_jobs, set_reviewed, set_interested, set_comment
+from storage import get_config, set_config, get_all_config
 
 app = Flask(__name__)
 
-cfg = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+# Initialize database first
+init_db()
+
+# Load YAML config (template)
+yaml_cfg = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+
+def load_config():
+    """Load config: debug_level & scrapers from YAML, keywords/locations/poll_interval from DB"""
+    global cfg
+    cfg = {
+        'debug_level': yaml_cfg.get('debug_level', 1),
+        'scrapers': yaml_cfg.get('scrapers', []),  # Always from YAML (enable/disable)
+        'keywords': get_config('keywords', []),    # From DB (empty if not set)
+        'locations': get_config('locations', []),  # From DB (empty if not set)
+        'poll_interval_minutes': get_config('poll_interval_minutes', 60)  # From DB
+    }
+    return cfg
+
+def write_scrapers_to_yaml(scrapers_list):
+    """Update only the 'scrapers' section in config.yaml"""
+    global yaml_cfg
+    try:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
+            full = yaml.safe_load(f) or {}
+    except Exception:
+        full = {}
+    full['scrapers'] = scrapers_list
+    # Write atomically
+    tmp = 'config.yaml.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(full, f, sort_keys=False, allow_unicode=True)
+    os.replace(tmp, 'config.yaml')
+    # reload global yaml_cfg
+    yaml_cfg = yaml.safe_load(open('config.yaml', 'r', encoding='utf-8'))
+
+cfg = load_config()
+
 scheduler = None  # Will be set later
+
+# Debug level: 0=silent, 1=normal, 2=verbose, 3=debug
+DEBUG_LEVEL = cfg.get('debug_level', 1)
 
 # Debug level: 0=silent, 1=normal, 2=verbose, 3=debug
 DEBUG_LEVEL = cfg.get('debug_level', 1)
@@ -85,19 +125,17 @@ def api_update_config():
     global cfg, scraper_instances, scheduler
     data = request.json
     
-    # Update config dict
-    cfg['keywords'] = data.get('keywords', [])
-    cfg['locations'] = data.get('locations', [])
-    cfg['poll_interval_minutes'] = data.get('poll_interval_minutes', 60)
+    # Save keywords, locations, poll_interval to DB
+    set_config('keywords', data.get('keywords', []))
+    set_config('locations', data.get('locations', []))
+    set_config('poll_interval_minutes', data.get('poll_interval_minutes', 60))
     
-    # Update scrapers enabled status
-    for i, scraper in enumerate(data.get('scrapers', [])):
-        if i < len(cfg.get('scrapers', [])):
-            cfg['scrapers'][i]['enabled'] = scraper.get('enabled', False)
+    # Save scrapers enable/disable to YAML
+    scrapers_data = data.get('scrapers', [])
+    write_scrapers_to_yaml(scrapers_data)
     
-    # Save to file
-    with open('config.yaml', 'w', encoding='utf-8') as f:
-        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+    # Reload config from DB and YAML
+    cfg = load_config()
     
     # Reload scrapers
     scraper_instances = load_scrapers()
@@ -113,9 +151,16 @@ def api_update_config():
 
 def run_scrapers():
     print(f'\n🔍 Running scrapers...')
-    all_found = []
     keywords = cfg.get('keywords', [])
     locations = cfg.get('locations', [])
+    
+    # Don't search if keywords or locations are empty
+    if not keywords or not locations:
+        if DEBUG_LEVEL >= 1:
+            print(f"⚠️  Skipping search: keywords and locations must be configured in Settings")
+        return
+    
+    all_found = []
     
     if DEBUG_LEVEL >= 2:
         print(f"   Keywords: {', '.join(keywords)}")
