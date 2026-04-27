@@ -39,8 +39,60 @@ def init_db():
             except:
                 pass
         
+        # Create app_config table for storing configuration in DB
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        ''')
+        
         conn.commit()
         conn.close()
+
+def get_config(key: str, default=None):
+    """Get a config value from DB"""
+    with _lock:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT value FROM app_config WHERE key = ?', (key,))
+        row = c.fetchone()
+        conn.close()
+        if row:
+            import json
+            try:
+                return json.loads(row[0])
+            except:
+                return row[0]
+        return default
+
+def set_config(key: str, value):
+    """Set a config value in DB (saves with JSON serialization)"""
+    with _lock:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        import json
+        json_value = json.dumps(value)
+        c.execute('INSERT OR REPLACE INTO app_config (key, value) VALUES (?, ?)', (key, json_value))
+        conn.commit()
+        conn.close()
+
+def get_all_config():
+    """Get all config from app_config table"""
+    with _lock:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT key, value FROM app_config')
+        rows = c.fetchall()
+        conn.close()
+        result = {}
+        import json
+        for key, value in rows:
+            try:
+                result[key] = json.loads(value)
+            except:
+                result[key] = value
+        return result
 
 def upsert_jobs(jobs: List[Dict[str, Any]]):
     """Insert jobs, deduplicating by (title, company, location, posted_date) fingerprint"""
