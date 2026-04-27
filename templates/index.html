@@ -147,6 +147,7 @@
           <option value="">None</option>
           <option value="company">Company</option>
           <option value="posted_date">Date</option>
+          <option value="keywords_tags">Keywords</option>
         </select>
       </div>
 
@@ -157,6 +158,7 @@
           <option value="posted_date-desc">Posted date (newest)</option>
           <option value="title-asc">Position (A-Z)</option>
           <option value="company-asc">Company (A-Z)</option>
+          <option value="keywords_tags-asc">Keywords (A-Z)</option>
         </select>
       </div>
 
@@ -181,7 +183,7 @@
       </thead>
       <tbody>
         {% for job in jobs %}
-        <tr data-job='{"id":"{{ job.id }}","title":"{{ job.title }}","company":"{{ job.company }}","location":"{{ job.location }}","url":"{{ job.url }}","posted_date":"{{ job.posted_date }}","reviewed":{{ job.reviewed }},"interested":{{ job.interested }},"comment":"{{ job.comment }}"}'>
+        <tr data-job='{"id":"{{ job.id }}","title":"{{ job.title }}","company":"{{ job.company }}","location":"{{ job.location }}","url":"{{ job.url }}","posted_date":"{{ job.posted_date }}","reviewed":{{ job.reviewed }},"interested":{{ job.interested }},"comment":"{{ job.comment }}","keywords_tags":"{{ job.keywords_tags }}"}'>
           <td>{{ job.title }}</td>
           <td>{{ job.company }}</td>
           <td class="nowrap">{{ job.location }}</td>
@@ -290,9 +292,25 @@
 
         const groups = {};
         jobs.forEach(job => {
-          const key = job[groupBy] || '(Unspecified)';
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(job);
+          let keys = [];
+          
+          // Handle keywords_tags specially (it's a JSON array)
+          if (groupBy === 'keywords_tags') {
+            try {
+              const tags = typeof job.keywords_tags === 'string' ? JSON.parse(job.keywords_tags) : job.keywords_tags;
+              keys = Array.isArray(tags) ? tags : (tags ? [tags] : ['(Unspecified)']);
+            } catch (e) {
+              keys = ['(Unspecified)'];
+            }
+          } else {
+            keys = [job[groupBy] || '(Unspecified)'];
+          }
+          
+          // Add job to each group it belongs to
+          keys.forEach(key => {
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(job);
+          });
         });
         return Object.entries(groups).map(([name, jobs]) => ({ name, jobs }));
       }
