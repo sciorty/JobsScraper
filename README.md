@@ -20,7 +20,7 @@ It's rough around the edges, not production-ready, and likely full of bugs. But 
 
 ⚠️ **Legal Notice**
 
-This is a **personal tool** for my own job search, not a commercial service. The default polling interval is intentionally set high (`60 minutes`) to be respectful to the target portals. If you modify the defaults to use lower intervals, you do so at your own risk and are responsible for any consequences (rate limiting, IP bans, account suspension, etc.). Respect the Terms of Service of any website you scrape from. The author assumes no liability for misuse of this tool.
+This is a **personal tool** for my own job search, not a commercial service. The default polling interval is intentionally set high (`poll_interval_minutes: 60`) to be respectful to the target portals. If you modify the defaults to use lower intervals, you do so at your own risk and are responsible for any consequences (rate limiting, IP bans, account suspension, etc.). Respect the Terms of Service of any website you scrape from. The author assumes no liability for misuse of this tool.
 
 ## 📋 Features
 
@@ -82,8 +82,28 @@ This automatically installs:
 - `apscheduler` — task scheduler
 - `PyYAML` — YAML config parsing
 
+### 4️⃣ Configure the project (optional)
 
-### 4️⃣ Start the app
+Edit `config.yaml` to add keywords/locations:
+
+```yaml
+keywords:
+  - Junior Developer
+
+locations:
+  - Turin
+  - Milan
+
+scrapers:
+  - name: linkedin
+    module: scrapers.linkedin
+    class: LinkedInScraper
+    enabled: true
+
+poll_interval_minutes: 60  # scrape every 60 minutes
+```
+
+### 5️⃣ Start the app
 
 **Option A: Foreground (see logs)**
 ```bash
@@ -111,17 +131,22 @@ Output:
 python3 manage.py start --bg
 ```
 
-### 5️⃣ Access the UI
+### 6️⃣ Access the UI
 
 - **Same machine**: http://127.0.0.1:5000
 - **Other PC on LAN**: http://<YOUR_IP>:5000
+  - On macOS, find your IP with: `ifconfig | grep "inet "`
+- **Smartphone**: same URL as your IP on the LAN
+
+## 📱 Dashboard & Configuration
+
+### Using the Dashboard
 
 The dashboard shows a table with all jobs. You can:
 
 | Feature | How |
 |---------|-----|
-| **Filter by Status** | Use "Status" dropdown (All / Reviewed / Interested / Not reviewed) |
-| **Filter by Keyword** | Use "Keyword" dropdown to show only jobs found with specific keywords |
+| **Filter** | Use "Status" dropdown (All / Reviewed / Interested / Not reviewed) |
 | **Group** | Use "Group by" dropdown (None / Company / Posted Date) |
 | **Sort** | Click column headers (Position, Company, Location, Date) |
 | **Mark Reviewed** | Check ✓ checkbox (auto-saves to DB) |
@@ -130,10 +155,7 @@ The dashboard shows a table with all jobs. You can:
 
 **Smart Defaults**: Dashboard opens with "Not reviewed" filter and "Company" grouping for quick scanning.
 
-**Keyword Tags**: Each job tracks which keywords it was found with. This lets you:
-- Filter results to see only jobs matching a specific keyword search
-- Understand which of your searches are producing results
-- Re-verify jobs if you modify your keyword list
+### Configuring via Web UI (Recommended)
 
 Click **⚙️ Settings** button to access the configuration panel:
 
@@ -145,9 +167,20 @@ Click **⚙️ Settings** button to access the configuration panel:
 
 Changes apply on the **next scraping cycle**. No app restart needed!
 
+### Manual Configuration (Advanced)
+
 Edit `config.yaml` directly for advanced options:
 
 ```yaml
+keywords:
+  - Embedded
+  - Firmware
+
+locations:
+  - Torino
+  - Milan
+
+poll_interval_minutes: 60
 debug_level: 1                   # 0=silent, 1=normal, 2=verbose, 3=debug
 
 scrapers:
@@ -165,7 +198,7 @@ scrapers:
 
 For keywords, locations, polling interval, and scraper enable/disable, **use the Web Settings** instead!
 
-### 6️⃣ Adding a New Scraper
+## 🔌 Adding a New Scraper
 
 ### Example: Indeed Scraper
 
@@ -248,7 +281,7 @@ LinkedIn rate limits aggressive scraping. The app now includes **exponential bac
 - Retries up to 3 times before giving up
 
 **If you still hit limits:**
-- Increase the polling interval to `60` or higher (default is safe)
+- Increase `poll_interval_minutes` to `60` or higher (default is safe)
 - Reduce `max_results_per_search` per scraper (fewer jobs per cycle)
 - Add more locations/reduce keywords to spread load
 - Use proxy or VPN

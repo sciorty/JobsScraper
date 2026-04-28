@@ -181,9 +181,6 @@ def run_scrapers():
                         print(f"   [{search_count}] {scraper_name.upper()}: '{kw}' in '{loc}' (max {max_results})")
                     
                     jobs = s.search(kw, loc, max_results=max_results)
-                    # Add keyword tag to each job
-                    for job in jobs:
-                        job['keywords_tags'] = kw
                     if DEBUG_LEVEL >= 2:
                         print(f"       → Found {len(jobs)} jobs")
                     all_found.extend(jobs)

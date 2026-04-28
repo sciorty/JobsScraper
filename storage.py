@@ -31,8 +31,6 @@ def init_db():
             c.execute("ALTER TABLE jobs ADD COLUMN reviewed INTEGER DEFAULT 0")
         if 'interested' not in columns:
             c.execute("ALTER TABLE jobs ADD COLUMN interested INTEGER DEFAULT 0")
-        if 'keywords_tags' not in columns:
-            c.execute("ALTER TABLE jobs ADD COLUMN keywords_tags TEXT DEFAULT '[]'")
         
         # Remove old 'flag' column if it exists and migrate data
         if 'flag' in columns and 'interested' in columns:
@@ -98,52 +96,33 @@ def get_all_config():
 
 def upsert_jobs(jobs: List[Dict[str, Any]]):
     """Insert jobs, deduplicating by (title, company, location, posted_date) fingerprint"""
-    import json
     with _lock:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
         # Get existing job fingerprints to avoid duplicates
         c.execute('''
-        SELECT id, title, company, location, posted_date, keywords_tags FROM jobs
+        SELECT title, company, location, posted_date FROM jobs
         ''')
-        existing = {}
+        existing = set()
         for row in c.fetchall():
-            fingerprint = (row[1], row[2], row[3], row[4])
-            existing[fingerprint] = {'id': row[0], 'tags': row[5]}
+            existing.add((row[0], row[1], row[2], row[3]))
         
         inserted = 0
         for job in jobs:
             fingerprint = (job.get('title'), job.get('company'), job.get('location'), job.get('posted_date'))
             
-            # Check if job already exists
+            # Skip if already exists
             if fingerprint in existing:
-                # Job exists: merge tags if new ones provided
-                existing_id = existing[fingerprint]['id']
-                if job.get('keywords_tags'):
-                    try:
-                        existing_tags = json.loads(existing[fingerprint]['tags']) if existing[fingerprint]['tags'] else []
-                    except:
-                        existing_tags = []
-                    new_tags = job.get('keywords_tags')
-                    if isinstance(new_tags, str):
-                        new_tags = [new_tags]
-                    for tag in new_tags:
-                        if tag not in existing_tags:
-                            existing_tags.append(tag)
-                    c.execute('UPDATE jobs SET keywords_tags = ? WHERE id = ?', (json.dumps(existing_tags), existing_id))
                 continue
                 
             try:
-                tags = job.get('keywords_tags', [])
-                if isinstance(tags, str):
-                    tags = [tags]
                 c.execute('''
-                INSERT OR IGNORE INTO jobs (title, company, location, url, posted_date, reviewed, interested, keywords_tags)
-                VALUES (?, ?, ?, ?, ?, 0, 0, ?)
-                ''', (job.get('title'), job.get('company'), job.get('location'), job.get('url'), job.get('posted_date'), json.dumps(tags)))
+                INSERT OR IGNORE INTO jobs (title, company, location, url, posted_date, reviewed, interested)
+                VALUES (?, ?, ?, ?, ?, 0, 0)
+                ''', (job.get('title'), job.get('company'), job.get('location'), job.get('url'), job.get('posted_date')))
                 inserted += 1
-                existing[fingerprint] = {'id': None, 'tags': json.dumps(tags)}
+                existing.add(fingerprint)
             except Exception:
                 pass
         
@@ -193,34 +172,5 @@ def set_comment(job_id: int, comment: str):
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('UPDATE jobs SET comment = ? WHERE id = ?', (comment, job_id))
-        conn.commit()
-        conn.close()
-
-def add_keywords_tag(job_id: int, keyword: str):
-    """Add a keyword tag to a job (if not already present)"""
-    import json
-    with _lock:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('SELECT keywords_tags FROM jobs WHERE id = ?', (job_id,))
-        row = c.fetchone()
-        if row:
-            try:
-                tags = json.loads(row[0]) if row[0] else []
-            except:
-                tags = []
-            if keyword not in tags:
-                tags.append(keyword)
-                c.execute('UPDATE jobs SET keywords_tags = ? WHERE id = ?', (json.dumps(tags), job_id))
-        conn.commit()
-        conn.close()
-
-def set_keywords_tags(job_id: int, tags: List[str]):
-    """Set keywords tags for a job"""
-    import json
-    with _lock:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('UPDATE jobs SET keywords_tags = ? WHERE id = ?', (json.dumps(tags), job_id))
         conn.commit()
         conn.close()
