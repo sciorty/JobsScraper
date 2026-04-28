@@ -135,11 +135,19 @@
       </div>
       
       <div>
+        <label for="filter-tag">Keyword:</label>
+        <select id="filter-tag">
+          <option value="">All</option>
+        </select>
+      </div>
+      
+      <div>
         <label for="group-by">Group by:</label>
         <select id="group-by">
           <option value="">None</option>
           <option value="company">Company</option>
           <option value="posted_date">Date</option>
+          <option value="keywords_tags">Keywords</option>
         </select>
       </div>
 
@@ -150,6 +158,7 @@
           <option value="posted_date-desc">Posted date (newest)</option>
           <option value="title-asc">Position (A-Z)</option>
           <option value="company-asc">Company (A-Z)</option>
+          <option value="keywords_tags-asc">Keywords (A-Z)</option>
         </select>
       </div>
 
@@ -174,7 +183,7 @@
       </thead>
       <tbody>
         {% for job in jobs %}
-        <tr data-job='{"id":"{{ job.id }}","title":"{{ job.title }}","company":"{{ job.company }}","location":"{{ job.location }}","url":"{{ job.url }}","posted_date":"{{ job.posted_date }}","reviewed":{{ job.reviewed }},"interested":{{ job.interested }},"comment":"{{ job.comment }}"}'>
+        <tr data-job='{"id":"{{ job.id }}","title":"{{ job.title }}","company":"{{ job.company }}","location":"{{ job.location }}","url":"{{ job.url }}","posted_date":"{{ job.posted_date }}","reviewed":{{ job.reviewed }},"interested":{{ job.interested }},"comment":"{{ job.comment }}","keywords_tags":"{{ job.keywords_tags }}"}'>
           <td>{{ job.title }}</td>
           <td>{{ job.company }}</td>
           <td class="nowrap">{{ job.location }}</td>
@@ -213,7 +222,34 @@
       async function loadJobs() {
         const resp = await fetch('/api/jobs');
         allJobs = await resp.json();
+        populateTagFilter();
         renderTable();
+      }
+
+      function populateTagFilter() {
+        // Extract all unique tags from jobs
+        const tags = new Set();
+        allJobs.forEach(job => {
+          try {
+            const jobTags = typeof job.keywords_tags === 'string' ? JSON.parse(job.keywords_tags) : job.keywords_tags;
+            if (Array.isArray(jobTags)) {
+              jobTags.forEach(tag => tags.add(tag));
+            } else if (jobTags) {
+              tags.add(jobTags);
+            }
+          } catch (e) {}
+        });
+        
+        const filterTag = document.getElementById('filter-tag');
+        const currentValue = filterTag.value;
+        filterTag.innerHTML = '<option value="">All</option>';
+        Array.from(tags).sort().forEach(tag => {
+          const opt = document.createElement('option');
+          opt.value = tag;
+          opt.textContent = tag;
+          filterTag.appendChild(opt);
+        });
+        filterTag.value = currentValue;
       }
 
       function parseJobData() {
@@ -223,6 +259,7 @@
       function getFilteredJobs() {
         let filtered = allJobs;
         const filterStatus = document.getElementById('filter-flag').value;
+        const filterTag = document.getElementById('filter-tag').value;
         
         if (filterStatus === 'reviewed') {
           filtered = filtered.filter(j => j.reviewed == 1);
@@ -231,6 +268,21 @@
         } else if (filterStatus === 'none') {
           filtered = filtered.filter(j => j.reviewed == 0);
         }
+        
+        if (filterTag) {
+          filtered = filtered.filter(job => {
+            try {
+              const jobTags = typeof job.keywords_tags === 'string' ? JSON.parse(job.keywords_tags) : job.keywords_tags;
+              if (Array.isArray(jobTags)) {
+                return jobTags.includes(filterTag);
+              } else if (jobTags) {
+                return jobTags === filterTag;
+              }
+            } catch (e) {}
+            return false;
+          });
+        }
+        
         return filtered;
       }
 
@@ -240,9 +292,25 @@
 
         const groups = {};
         jobs.forEach(job => {
-          const key = job[groupBy] || '(Unspecified)';
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(job);
+          let keys = [];
+          
+          // Handle keywords_tags specially (it's a JSON array)
+          if (groupBy === 'keywords_tags') {
+            try {
+              const tags = typeof job.keywords_tags === 'string' ? JSON.parse(job.keywords_tags) : job.keywords_tags;
+              keys = Array.isArray(tags) ? tags : (tags ? [tags] : ['(Unspecified)']);
+            } catch (e) {
+              keys = ['(Unspecified)'];
+            }
+          } else {
+            keys = [job[groupBy] || '(Unspecified)'];
+          }
+          
+          // Add job to each group it belongs to
+          keys.forEach(key => {
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(job);
+          });
         });
         return Object.entries(groups).map(([name, jobs]) => ({ name, jobs }));
       }
@@ -356,6 +424,10 @@
         setPreference('filter-flag', e.target.value);
         renderTable();
       });
+      document.getElementById('filter-tag').addEventListener('change', (e) => {
+        setPreference('filter-tag', e.target.value);
+        renderTable();
+      });
       document.getElementById('group-by').addEventListener('change', (e) => {
         setPreference('group-by', e.target.value);
         renderTable();
@@ -368,7 +440,8 @@
       // Initial render with defaults
       initDarkMode();
       document.getElementById('filter-flag').value = getPreference('filter-flag', 'none');
-      document.getElementById('group-by').value = getPreference('group-by', 'company');
+      document.getElementById('filter-tag').value = getPreference('filter-tag', '');
+      document.getElementById('group-by').value = getPreference('group-by', 'keywords_tags');
       document.getElementById('sort-by').value = getPreference('sort-by', 'company-asc');
       loadJobs();
     </script>
