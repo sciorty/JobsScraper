@@ -78,12 +78,26 @@
         font-weight: 600; 
         padding: 12px !important; 
         text-align: left;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
       body.dark-mode .group-header {
         background: #1a3a52;
         color: #e0e0e0;
       }
       tr.group-header td { border-top: 2px solid #2196F3; }
+      .group-header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+      }
+      .group-header-checkbox {
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+      }
       .new-jobs-badge {
         background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
         color: white;
@@ -340,7 +354,36 @@
           if (group.name) {
             const tr = document.createElement('tr');
             tr.className = 'group-header';
-            tr.innerHTML = `<td colspan="8">${group.name} (${group.jobs.length})</td>`;
+            
+            // Calculate if all jobs in group are reviewed
+            const allReviewed = group.jobs.every(j => j.reviewed == 1);
+            const someReviewed = group.jobs.some(j => j.reviewed == 1);
+            
+            const headerContent = document.createElement('td');
+            headerContent.colSpan = 8;
+            headerContent.style.display = 'flex';
+            headerContent.style.alignItems = 'center';
+            headerContent.style.justifyContent = 'space-between';
+            headerContent.style.width = '100%';
+            
+            const leftContent = document.createElement('div');
+            leftContent.className = 'group-header-content';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'group-header-checkbox';
+            checkbox.checked = allReviewed;
+            checkbox.indeterminate = someReviewed && !allReviewed;
+            checkbox.dataset.groupName = group.name;
+            checkbox.addEventListener('change', (e) => onGroupReviewedChange(e, group.jobs));
+            
+            const label = document.createElement('span');
+            label.textContent = `${group.name} (${group.jobs.length})`;
+            
+            leftContent.appendChild(checkbox);
+            leftContent.appendChild(label);
+            headerContent.appendChild(leftContent);
+            tr.appendChild(headerContent);
             tbody.appendChild(tr);
           }
           group.jobs.forEach(job => {
@@ -417,6 +460,46 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, comment })
         });
+      }
+
+      function updateReviewedStatus(jobs, reviewed) {
+        jobs.forEach(job => {
+          const jobIndex = allJobs.findIndex(j => j.id == job.id);
+          if (jobIndex !== -1) {
+            allJobs[jobIndex].reviewed = reviewed ? 1 : 0;
+          }
+        });
+      }
+
+      function onGroupReviewedChange(e, jobs) {
+        const reviewed = e.target.checked;
+        jobs.forEach(job => {
+          const jobRow = Array.from(document.querySelectorAll('#jobs-table tbody tr')).find(r => r.dataset.job && JSON.parse(r.dataset.job).id == job.id);
+          if (jobRow) {
+            const reviewedCheckbox = jobRow.querySelector('input.reviewed');
+            if (reviewedCheckbox) {
+              reviewedCheckbox.checked = reviewed;
+              job.reviewed = reviewed ? 1 : 0;
+            }
+          }
+        });
+        updateReviewedStatus(jobs, reviewed);
+        renderTable();
+      }
+
+      async function onGroupReviewedChange(e, groupJobs) {
+        const reviewed = e.target.checked;
+        // Update all jobs in the group
+        for (const job of groupJobs) {
+          await fetch('/api/set_reviewed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: job.id, reviewed })
+          });
+          const jobInList = allJobs.find(j => j.id == job.id);
+          if (jobInList) jobInList.reviewed = reviewed ? 1 : 0;
+        }
+        renderTable();
       }
 
       // Event listeners
