@@ -76,22 +76,15 @@
       .group-header { 
         background: #e3f2fd; 
         font-weight: 600; 
-        padding: 12px !important; 
-        text-align: left;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
       }
       body.dark-mode .group-header {
         background: #1a3a52;
         color: #e0e0e0;
       }
-      tr.group-header td { border-top: 2px solid #2196F3; }
-      .group-header-content {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1;
+      tr.group-header td { 
+        border-top: 2px solid #2196F3;
+        background: inherit;
+        padding: 12px;
       }
       .group-header-checkbox {
         cursor: pointer;
@@ -359,16 +352,21 @@
             const allReviewed = group.jobs.every(j => j.reviewed == 1);
             const someReviewed = group.jobs.some(j => j.reviewed == 1);
             
-            const headerContent = document.createElement('td');
-            headerContent.colSpan = 8;
-            headerContent.style.display = 'flex';
-            headerContent.style.alignItems = 'center';
-            headerContent.style.justifyContent = 'space-between';
-            headerContent.style.width = '100%';
+            // Create 8 cells (one for each column)
+            // Cell 1: Position (with group name)
+            const posCell = document.createElement('td');
+            posCell.textContent = `${group.name} (${group.jobs.length})`;
+            tr.appendChild(posCell);
             
-            const leftContent = document.createElement('div');
-            leftContent.className = 'group-header-content';
+            // Cells 2-5: Company, Location, Link, Date (empty)
+            for (let i = 0; i < 4; i++) {
+              const cell = document.createElement('td');
+              tr.appendChild(cell);
+            }
             
+            // Cell 6: Reviewed (with checkbox)
+            const reviewedCell = document.createElement('td');
+            reviewedCell.className = 'nowrap';
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'group-header-checkbox';
@@ -376,16 +374,18 @@
             checkbox.indeterminate = someReviewed && !allReviewed;
             checkbox.dataset.groupName = group.name;
             checkbox.addEventListener('change', (e) => onGroupReviewedChange(e, group.jobs));
+            reviewedCell.appendChild(checkbox);
+            tr.appendChild(reviewedCell);
             
-            const label = document.createElement('span');
-            label.textContent = `${group.name} (${group.jobs.length})`;
+            // Cells 7-8: Interested, Comment (empty)
+            for (let i = 0; i < 2; i++) {
+              const cell = document.createElement('td');
+              tr.appendChild(cell);
+            }
             
-            leftContent.appendChild(checkbox);
-            leftContent.appendChild(label);
-            headerContent.appendChild(leftContent);
-            tr.appendChild(headerContent);
             tbody.appendChild(tr);
           }
+          
           group.jobs.forEach(job => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -460,31 +460,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, comment })
         });
-      }
-
-      function updateReviewedStatus(jobs, reviewed) {
-        jobs.forEach(job => {
-          const jobIndex = allJobs.findIndex(j => j.id == job.id);
-          if (jobIndex !== -1) {
-            allJobs[jobIndex].reviewed = reviewed ? 1 : 0;
-          }
-        });
-      }
-
-      function onGroupReviewedChange(e, jobs) {
-        const reviewed = e.target.checked;
-        jobs.forEach(job => {
-          const jobRow = Array.from(document.querySelectorAll('#jobs-table tbody tr')).find(r => r.dataset.job && JSON.parse(r.dataset.job).id == job.id);
-          if (jobRow) {
-            const reviewedCheckbox = jobRow.querySelector('input.reviewed');
-            if (reviewedCheckbox) {
-              reviewedCheckbox.checked = reviewed;
-              job.reviewed = reviewed ? 1 : 0;
-            }
-          }
-        });
-        updateReviewedStatus(jobs, reviewed);
-        renderTable();
       }
 
       async function onGroupReviewedChange(e, groupJobs) {
