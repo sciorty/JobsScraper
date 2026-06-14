@@ -73,6 +73,189 @@
         background: var(--bg-primary);
         color: var(--text-primary);
       }
+      
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease-in;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      .modal-content {
+        background: var(--bg-primary);
+        margin: 5% auto;
+        padding: 24px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        animation: slideIn 0.3s ease-out;
+      }
+      
+      @keyframes slideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 12px;
+      }
+      
+      .modal-header h2 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.5rem;
+      }
+      
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: var(--text-primary);
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      
+      .modal-close:hover {
+        background: var(--border-color);
+      }
+      
+      .modal-body {
+        margin-bottom: 16px;
+      }
+      
+      .job-info {
+        background: var(--bg-secondary);
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        border-left: 4px solid #007bff;
+      }
+      
+      .job-info-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+      }
+      
+      .job-info-company {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        opacity: 0.8;
+      }
+      
+      .comment-textarea {
+        width: 100%;
+        min-height: 200px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 1rem;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        resize: vertical;
+      }
+      
+      .comment-textarea:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      }
+      
+      .modal-footer {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      
+      .modal-footer button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      
+      .btn-save {
+        background: #28a745;
+        color: white;
+      }
+      
+      .btn-save:hover {
+        background: #218838;
+      }
+      
+      .btn-cancel {
+        background: #6c757d;
+        color: white;
+      }
+      
+      .btn-cancel:hover {
+        background: #5a6268;
+      }
+      
+      .comment-btn {
+        padding: 4px 8px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background 0.2s;
+      }
+      
+      .comment-btn:hover {
+        background: #0056b3;
+      }
+      
+      .comment-btn.has-comment {
+        background: #28a745;
+      }
+      
+      .comment-btn.has-comment:hover {
+        background: #218838;
+      }
+      
+      .comment-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #ffc107;
+        border-radius: 50%;
+        margin-right: 4px;
+      }
       .group-header { 
         background: #e3f2fd; 
         font-weight: 600; 
@@ -198,11 +381,32 @@
           <td class="nowrap">{{ job.posted_date }}</td>
           <td class="nowrap"><input type="checkbox" data-id="{{ job.id }}" class="reviewed" {% if job.reviewed %}checked{% endif %}></td>
           <td class="nowrap"><input type="checkbox" data-id="{{ job.id }}" class="interested" {% if job.interested %}checked{% endif %}></td>
-          <td><input type="text" data-id="{{ job.id }}" class="comment" value="{{ job.comment }}"></td>
+          <td class="nowrap"><button class="comment-btn" data-id="{{ job.id }}" data-title="{{ job.title }}" data-company="{{ job.company }}" data-comment="{{ job.comment }}">{% if job.comment %}<span class="comment-indicator"></span>{% endif %}Comment</button></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    <!-- Comment Modal -->
+    <div id="comment-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Edit Comment</h2>
+          <button class="modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="job-info">
+            <div class="job-info-title" id="modal-job-title"></div>
+            <div class="job-info-company" id="modal-job-company"></div>
+          </div>
+          <textarea id="comment-textarea" class="comment-textarea" placeholder="Add your notes about this job offer..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" id="modal-cancel">Cancel</button>
+          <button class="btn-save" id="modal-save">Save</button>
+        </div>
+      </div>
+    </div>
 
     <script>
       let allJobs = [];
@@ -396,14 +600,17 @@
               <td class="nowrap">${job.posted_date}</td>
               <td class="nowrap"><input type="checkbox" data-id="${job.id}" class="reviewed" ${job.reviewed ? 'checked' : ''}></td>
               <td class="nowrap"><input type="checkbox" data-id="${job.id}" class="interested" ${job.interested ? 'checked' : ''}></td>
-              <td><input type="text" data-id="${job.id}" class="comment" value="${job.comment || ''}"></td>
+              <td class="nowrap"><button class="comment-btn ${job.comment ? 'has-comment' : ''}" data-id="${job.id}" data-title="${job.title}" data-company="${job.company}" data-comment="${job.comment || ''}">${job.comment ? '<span class="comment-indicator"></span>' : ''}Comment</button></td>
             `;
             tbody.appendChild(tr);
             
             // Attach listeners
             tr.querySelector('input.reviewed')?.addEventListener('change', onReviewedChange);
             tr.querySelector('input.interested')?.addEventListener('change', onInterestedChange);
-            tr.querySelector('input.comment')?.addEventListener('blur', onCommentChange);
+            tr.querySelector('button.comment-btn')?.addEventListener('click', (e) => {
+              const btn = e.target.closest('button.comment-btn');
+              openCommentModal(btn.dataset.id, btn.dataset.title, btn.dataset.company, btn.dataset.comment);
+            });
           });
         });
 
@@ -462,20 +669,59 @@
         });
       }
 
-      async function onGroupReviewedChange(e, groupJobs) {
-        const reviewed = e.target.checked;
-        // Update all jobs in the group
-        for (const job of groupJobs) {
-          await fetch('/api/set_reviewed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: job.id, reviewed })
-          });
-          const jobInList = allJobs.find(j => j.id == job.id);
-          if (jobInList) jobInList.reviewed = reviewed ? 1 : 0;
-        }
+      // Modal functions
+      let currentCommentJobId = null;
+
+      function openCommentModal(jobId, title, company, comment) {
+        currentCommentJobId = jobId;
+        document.getElementById('modal-job-title').textContent = title;
+        document.getElementById('modal-job-company').textContent = company;
+        document.getElementById('comment-textarea').value = comment || '';
+        document.getElementById('comment-modal').style.display = 'block';
+        document.getElementById('comment-textarea').focus();
+      }
+
+      function closeCommentModal() {
+        document.getElementById('comment-modal').style.display = 'none';
+        currentCommentJobId = null;
+      }
+
+      async function saveComment() {
+        if (currentCommentJobId === null) return;
+        
+        const comment = document.getElementById('comment-textarea').value;
+        await fetch('/api/set_comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: currentCommentJobId, comment })
+        });
+        
+        const job = allJobs.find(j => j.id == currentCommentJobId);
+        if (job) job.comment = comment;
+        
+        closeCommentModal();
         renderTable();
       }
+
+      // Modal event listeners
+      document.getElementById('modal-close').addEventListener('click', closeCommentModal);
+      document.getElementById('modal-cancel').addEventListener('click', closeCommentModal);
+      document.getElementById('modal-save').addEventListener('click', saveComment);
+
+      // Close modal when clicking outside
+      window.addEventListener('click', (e) => {
+        const modal = document.getElementById('comment-modal');
+        if (e.target === modal) {
+          closeCommentModal();
+        }
+      });
+
+      // Close modal with Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeCommentModal();
+        }
+      });
 
       // Event listeners
       document.getElementById('filter-flag').addEventListener('change', (e) => {
@@ -492,6 +738,50 @@
       });
       document.getElementById('sort-by').addEventListener('change', (e) => {
         setPreference('sort-by', e.target.value);
+        renderTable();
+      });
+
+      // Modal functionality
+      const commentModal = document.getElementById('comment-modal');
+      const closeModalBtn = document.getElementById('modal-close');
+      const saveCommentBtn = document.getElementById('modal-save');
+      const cancelCommentBtn = document.getElementById('modal-cancel');
+      const commentTextarea = document.getElementById('comment-textarea');
+      const modalJobTitle = document.getElementById('modal-job-title');
+      const modalJobCompany = document.getElementById('modal-job-company');
+
+      document.querySelectorAll('.comment-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const jobId = e.currentTarget.dataset.id;
+          const job = allJobs.find(j => j.id == jobId);
+          if (job) {
+            modalJobTitle.textContent = job.title;
+            modalJobCompany.textContent = job.company;
+            commentTextarea.value = job.comment || '';
+            commentModal.style.display = 'block';
+          }
+        });
+      });
+
+      closeModalBtn.addEventListener('click', () => {
+        commentModal.style.display = 'none';
+      });
+
+      cancelCommentBtn.addEventListener('click', () => {
+        commentModal.style.display = 'none';
+      });
+
+      saveCommentBtn.addEventListener('click', async () => {
+        const jobId = document.querySelector('.comment-btn[data-id]').dataset.id;
+        const comment = commentTextarea.value;
+        await fetch('/api/set_comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: jobId, comment })
+        });
+        const job = allJobs.find(j => j.id == jobId);
+        if (job) job.comment = comment;
+        commentModal.style.display = 'none';
         renderTable();
       });
 
