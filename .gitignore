@@ -34,3 +34,5 @@ app.log
 
 # Config (optional - uncomment if you want to keep config private)
 # config.yaml
+# Service files
+service/
